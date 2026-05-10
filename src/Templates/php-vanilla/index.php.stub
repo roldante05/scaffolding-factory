@@ -5,8 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/vendor/autoload.php';
 
 use App\Core\Router;
+use App\Security\Helpers\SecurityHelper;
 
-session_start();
+// Configurar sesión segura y aplicar headers de seguridad
+SecurityHelper::configureSecureSession();
+SecurityHelper::applySecurityHeaders();
 
 $router = new Router();
 
