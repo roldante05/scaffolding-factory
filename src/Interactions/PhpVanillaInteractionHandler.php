@@ -18,6 +18,17 @@ class PhpVanillaInteractionHandler implements InteractionHandlerInterface
     public function handle(InputInterface $input, OutputInterface $output): ProjectOptions
     {
         $projectName = $input->getArgument('name');
+        $isTty = stream_isatty(STDIN);
+
+        if (!$isTty) {
+            // Return default options for non-interactive mode
+            return new PhpVanillaOptions(
+                projectName: $projectName,
+                database: 'mysql',
+                login: false,
+                css: 'Tailwind CSS'
+            );
+        }
 
         info('💾 Database Configuration');
         $database = select(
