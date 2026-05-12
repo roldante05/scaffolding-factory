@@ -12,24 +12,27 @@ use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use InvalidArgumentException;
+use ReflectionClass;
 
 class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
 {
     private OutputInterface $output;
     private ConsoleOutputInterface $consoleOutput;
     private ConsoleSectionOutput $historySection;
-    private ConsoleSectionOutput $activeSection;
+    private ConsoleSectionOutput $statusSection;
+    private ConsoleSectionOutput $logSection;
 
     protected function setUp(): void
     {
         $this->output = $this->createMock(OutputInterface::class);
         $this->consoleOutput = $this->createMock(ConsoleOutputInterface::class);
         $this->historySection = $this->createMock(ConsoleSectionOutput::class);
-        $this->activeSection = $this->createMock(ConsoleSectionOutput::class);
+        $this->statusSection = $this->createMock(ConsoleSectionOutput::class);
+        $this->logSection = $this->createMock(ConsoleSectionOutput::class);
         
         // Configure console output to return our sections
         $this->consoleOutput->method('section')
-            ->willReturnOnConsecutiveCalls($this->historySection, $this->activeSection);
+            ->willReturnOnConsecutiveCalls($this->historySection, $this->statusSection, $this->logSection);
     }
 
     /**
@@ -40,7 +43,7 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
     private function createMockBuilder(): MockObject
     {
         return $this->getMockBuilder(LaravelBuilder::class)
-                    ->setMethods([
+                    ->onlyMethods([
                         'scaffoldProject',
                         'ensureBootstrap',
                         'configureSail',
@@ -181,7 +184,7 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
     public function test_build_method_throws_exception_on_invalid_project_name(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Project name 'invalid/name' contains invalid characters");
+        $this->expectExceptionMessage("contains invalid path separators");
 
         $options = new LaravelOptions(
             projectName: 'test-project',
@@ -200,7 +203,7 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
     public function test_build_method_throws_exception_on_project_name_with_dots(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Project name '..' is invalid after sanitization");
+        $this->expectExceptionMessage("is invalid");
 
         $options = new LaravelOptions(
             projectName: 'test-project',
@@ -237,10 +240,9 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
 
     public function test_build_method_throws_exception_on_non_boolean_with_boost(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("withBoost must be a boolean value");
+        $this->expectException(\TypeError::class);
 
-        $options = new LaravelOptions(
+        new LaravelOptions(
             projectName: 'test-project',
             wantKit: false,
             kit: 'None',
@@ -249,17 +251,13 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
             database: 'sqlite',
             withBoost: 'yes' // Invalid boolean
         );
-
-        $builder = new LaravelBuilder();
-        $builder->build('test-project', $options, $this->output);
     }
 
     public function test_build_method_throws_exception_on_non_boolean_with_teams(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("withTeams must be a boolean value");
+        $this->expectException(\TypeError::class);
 
-        $options = new LaravelOptions(
+        new LaravelOptions(
             projectName: 'test-project',
             wantKit: false,
             kit: 'None',
@@ -268,16 +266,13 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
             database: 'sqlite',
             withBoost: false
         );
-
-        $builder = new LaravelBuilder();
-        $builder->build('test-project', $options, $this->output);
     }
 
     /**
      * Test that valid inputs are accepted (positive security tests)
      */
 
-    public function validDatabaseProvider(): array
+    public static function validDatabaseProvider(): array
     {
         return [
             ['mysql'],
@@ -309,7 +304,7 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(0, $result, "Database='$database' should be accepted");
     }
 
-    public function validKitProvider(): array
+    public static function validKitProvider(): array
     {
         return [
             ['Breeze'],
@@ -339,7 +334,7 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(0, $result, "Kit='$kit' should be accepted");
     }
 
-    public function validStackProvider(): array
+    public static function validStackProvider(): array
     {
         return [
             ['livewire'],
@@ -386,5 +381,58 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
         $builder = $this->createMockBuilder();
         $result = $builder->build('valid-project_name', $options, $this->output);
         $this->assertEquals(0, $result, "Valid project name with hyphens and underscores should be accepted");
+    }
+
+    public function test_run_process_filters_noise_in_quiet_mode(): void
+    {
+        $output = $this->createMock(OutputInterface::class);
+        $builder = new LaravelBuilder();
+        $method = new ReflectionClass(LaravelBuilder::class);
+        $runProcess = $method->getMethod('runProcess');
+        $runProcess->setAccessible(true);
+
+        // Expect writeln to be called for meaningful output but not for noise
+        $output->expects($this->exactly(2))
+               ->method('writeln')
+               ->with($this->callback(fn($line) => 
+                   stripos($line, 'Meaningful output') !== false || 
+                   stripos($line, 'Another meaningful line') !== false
+               ));
+
+        $runProcess->invoke(
+            $builder,
+            ['php', '-r', 'echo "Loading composer repositories\n"; echo "✔ Meaningful output\n"; echo "Updating dependencies\n"; echo "Another meaningful line\n";'],
+            getcwd(),
+            $output,
+            false, // hideOutput
+            false, // allowFailure
+            true,  // quietMode
+            false  // verboseMode
+        );
+    }
+
+    public function test_run_process_shows_all_in_verbose_mode(): void
+    {
+        $output = $this->createMock(OutputInterface::class);
+        $builder = new LaravelBuilder();
+        $method = new ReflectionClass(LaravelBuilder::class);
+        $runProcess = $method->getMethod('runProcess');
+        $runProcess->setAccessible(true);
+
+        // Expect write to be called (at least once with all content)
+        $output->expects($this->atLeastOnce())
+               ->method('write')
+               ->with($this->stringContains('Loading composer repositories'));
+
+        $runProcess->invoke(
+            $builder,
+            ['php', '-r', 'echo "Loading composer repositories\n"; echo "✔ Meaningful output\n"; echo "Updating dependencies\n"; echo "Another meaningful line\n";'],
+            getcwd(),
+            $output,
+            false, // hideOutput
+            false, // allowFailure
+            false, // quietMode
+            true   // verboseMode
+        );
     }
 }
