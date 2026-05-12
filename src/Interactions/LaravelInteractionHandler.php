@@ -18,6 +18,8 @@ class LaravelInteractionHandler implements InteractionHandlerInterface
     public function handle(InputInterface $input, OutputInterface $output): ProjectOptions
     {
         $projectName = $input->getArgument('name');
+        $verbose = $output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE;
+        $quiet = !$verbose;
         $isTty = stream_isatty(STDIN);
 
         if (!$isTty) {
@@ -28,7 +30,9 @@ class LaravelInteractionHandler implements InteractionHandlerInterface
                 stack: 'blade',
                 withTeams: false,
                 database: 'sqlite',
-                withBoost: PHP_OS_FAMILY !== 'Windows'
+                withBoost: PHP_OS_FAMILY !== 'Windows',
+                quiet: $quiet,
+                verbose: $verbose
             );
         }
 
@@ -137,7 +141,9 @@ class LaravelInteractionHandler implements InteractionHandlerInterface
             stack: $stack,
             withTeams: $withTeams,
             database: $database,
-            withBoost: $withBoost
+            withBoost: $withBoost,
+            quiet: $quiet,
+            verbose: $verbose
         );
     }
 }
