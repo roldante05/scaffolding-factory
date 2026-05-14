@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Nos aseguramos de estar en la raíz del proyecto (un nivel arriba de scripts/)
+cd "$(dirname "$0")/.."
+
 echo "🚀 PHP Vanilla Project - Install script"
 echo "=========================================="
 

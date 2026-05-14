@@ -218,7 +218,7 @@ class PhpVanillaBuilder implements BuilderInterface
             'docker-compose.yml.stub' => 'docker-compose.yml',
             'Dockerfile.stub' => 'Dockerfile',
             'composer.json.stub' => 'composer.json',
-            'install.sh.stub' => 'install.sh',
+            'install.sh.stub' => 'scripts/install.sh',
             'Security/Helpers/SecurityHelper.php.stub' => 'src/Security/Helpers/SecurityHelper.php',
         ];
 
