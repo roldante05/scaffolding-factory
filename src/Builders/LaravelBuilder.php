@@ -21,6 +21,9 @@ class LaravelBuilder implements BuilderInterface
     private array $allowedKits = ['Breeze', 'Jetstream', 'Official Starter Kit (2026)', 'None'];
     /** @var array<string> */
     private array $allowedStacks = ['livewire', 'vue', 'react', 'inertia', 'blade', 'none'];
+    /** @var array<string> */
+    private array $logBuffer = [];
+    private int $maxLogLines = 5;
 
     public function build(string $projectName, ProjectOptions $options, OutputInterface $output): int
     {
@@ -32,30 +35,78 @@ class LaravelBuilder implements BuilderInterface
         $projectPath = getcwd() . DIRECTORY_SEPARATOR . $sanitizedProjectName;
 
         try {
-            // 0️⃣ Preparar secciones de salida (historial, estado y log)
-            [$historySection, $statusSection, $logSection] = $this->getOutputSections($output);
+            // 0️⃣ Preparar secciones de salida (solo una sección para los logs dinámicos)
+            $logSection = $output instanceof ConsoleOutputInterface ? $output->section() : $output;
+            $historySection = $output;
+            $statusSection = $output;
 
             // 1️⃣ Scaffold del proyecto Laravel
-            $this->scaffoldProject($sanitizedProjectName, $statusSection, $logSection, $sanitizedOptions);
-            $historySection->writeln('   <info>✔</info> Laravel project created');
+            $this->runStep(
+                'Scaffolding project',
+                fn() => $this->scaffoldProject($sanitizedProjectName, $statusSection, $logSection, $sanitizedOptions),
+                'Laravel project created',
+                $historySection,
+                $statusSection,
+                $logSection
+            );
 
             // 2️⃣ Bootstrap JS
             $this->ensureBootstrap($projectPath);
 
             // 3️⃣ Sail
-            $this->configureSail($projectPath, $sanitizedOptions, $historySection, $statusSection, $logSection);
+            $this->runStep(
+                'Configuring Laravel Sail',
+                fn() => $this->configureSailStep($projectPath, $sanitizedOptions, $logSection),
+                'Laravel Sail configured',
+                $historySection,
+                $statusSection,
+                $logSection
+            );
 
             // 4️⃣ Auth Kit
-            $this->installAuthKit($projectPath, $sanitizedOptions, $historySection, $statusSection, $logSection);
+            if ($sanitizedOptions->kit !== 'None') {
+                $kitName = $sanitizedOptions->kit === 'Breeze' ? 'Laravel Breeze' : ($sanitizedOptions->kit === 'Official Starter Kit (2026)' ? 'Official Starter Kit' : 'Laravel Jetstream');
+                $this->runStep(
+                    "Installing {$kitName}",
+                    fn() => $this->installAuthKit($projectPath, $sanitizedOptions, $logSection),
+                    "{$kitName} installed",
+                    $historySection,
+                    $statusSection,
+                    $logSection
+                );
+            }
 
             // 5️⃣ Boost (opcional)
-            $this->maybeInstallBoost($projectPath, $sanitizedOptions, $historySection, $statusSection, $logSection);
+            if ($sanitizedOptions->withBoost) {
+                $this->runStep(
+                    'Installing Laravel Boost',
+                    fn() => $this->installBoost($projectPath, $logSection, $sanitizedOptions),
+                    'Laravel Boost installed',
+                    $historySection,
+                    $statusSection,
+                    $logSection
+                );
+            }
 
             // 6️⃣ Base de datos
-            $this->setDatabase($projectPath, $sanitizedOptions->database, $historySection, $statusSection, $logSection);
+            $this->runStep(
+                'Setting database connection',
+                fn() => $this->setDatabaseConnection($projectPath, $sanitizedOptions->database, $logSection),
+                'Database connection set to ' . $sanitizedOptions->database,
+                $historySection,
+                $statusSection,
+                $logSection
+            );
 
             // 7️⃣ Script de instalación
-            $this->generateInstallationScript($projectPath, $sanitizedOptions, $historySection, $statusSection, $logSection);
+            $this->runStep(
+                'Generating installation script',
+                fn() => $this->generateInstallScript($projectPath, $sanitizedOptions, $logSection),
+                'Installation script generated',
+                $historySection,
+                $statusSection,
+                $logSection
+            );
 
             // 8️⃣ Permisos de node_modules
             $this->fixNodeModulesPermissions($projectPath, $statusSection, $sanitizedOptions);
@@ -155,19 +206,44 @@ class LaravelBuilder implements BuilderInterface
         return $projectName;
     }
 
+
     /**
-     * Prepara las secciones de salida: historial (historial acumulado) y activo (temporal).
+     * Runs a step with a status message and handles logs with a sliding window.
      *
-     * @param OutputInterface $output Salida de consola que puede producir secciones.
-     * @return array{0: OutputInterface, 1: OutputInterface} [historySection, activeSection]
+     * @param string $title The initial title (e.g. "Configuring Sail")
+     * @param callable $task The task to execute
+     * @param string $successTitle The success message (e.g. "Sail configured")
+     * @param OutputInterface $historySection Section for permanent history
+     * @param OutputInterface $statusSection Section for current step status
+     * @param OutputInterface $logSection Section for scrolling logs
      */
-    private function getOutputSections(OutputInterface $output): array
-    {
-        if ($output instanceof ConsoleOutputInterface) {
-            return [$output->section(), $output->section(), $output->section()]; // [history, status, log]
+    private function runStep(
+        string $title,
+        callable $task,
+        string $successTitle,
+        OutputInterface $historySection,
+        OutputInterface $statusSection,
+        OutputInterface $logSection
+    ): void {
+        $this->logBuffer = [];
+
+        // Escribimos el bullet de progreso
+        $statusSection->writeln("   • {$title} ...");
+
+        $task();
+
+        // Limpiamos los logs al terminar
+        if ($logSection instanceof ConsoleSectionOutput) {
+            $logSection->clear();
         }
 
-        return [$output, $output, $output]; // fallback
+        // Si la terminal lo soporta, subimos una línea y la borramos para reemplazar el bullet
+        // \033[1A = subir una línea, \033[2K = borrar línea entera
+        if ($statusSection->isDecorated()) {
+            $statusSection->write("\033[1A\033[2K");
+        }
+
+        $historySection->writeln("   <info>✔</info> {$successTitle}");
     }
 
     /**
@@ -189,12 +265,12 @@ class LaravelBuilder implements BuilderInterface
         bool $hideOutput = false,
         bool $allowFailure = false,
         bool $quietMode = false,
-        bool $verboseMode = false
+        bool $verboseMode = false,
+        array $env = []
     ): void {
-        $process = new Process($command);
-        $process->setWorkingDirectory($workingDirectory);
+        $process = new Process($command, $workingDirectory, $env);
         $process->setTimeout(null);
-        
+
         $process->run(function ($type, $line) use ($output, $hideOutput, $quietMode, $verboseMode) {
             if ($hideOutput) {
                 return;
@@ -205,12 +281,14 @@ class LaravelBuilder implements BuilderInterface
 
         if (!$process->isSuccessful() && !$allowFailure) {
             throw new \RuntimeException(
-                sprintf('Process failed with exit code %d.' . PHP_EOL .
-                        'Output: %s' . PHP_EOL .
-                        'Error: %s',
-                        $process->getExitCode(),
-                        $process->getOutput(),
-                        $process->getErrorOutput())
+                sprintf(
+                    'Process failed with exit code %d.' . PHP_EOL .
+                    'Output: %s' . PHP_EOL .
+                    'Error: %s',
+                    $process->getExitCode(),
+                    $process->getOutput(),
+                    $process->getErrorOutput()
+                )
             );
         }
     }
@@ -232,11 +310,6 @@ class LaravelBuilder implements BuilderInterface
         }
 
         if ($isQuiet) {
-            if ($type === Process::ERR) {
-                $output->write($line);
-                return;
-            }
-            
             // Split chunk into lines to apply filtering accurately
             $lines = explode("\n", $line);
             foreach ($lines as $singleLine) {
@@ -244,12 +317,17 @@ class LaravelBuilder implements BuilderInterface
                     continue;
                 }
                 if (!$this->isNoise($singleLine)) {
-                    // Strip tags and ANSI codes to avoid visible tags in non-decorated output
-                    $cleanOutput = preg_replace(['/<[^>]*>/', '/\x1b\[[0-9;]*m/'], '', $singleLine);
+                    // Limpiamos etiquetas HTML y TODO tipo de código ANSI (colores y movimientos de cursor)
+                    // \x1b\[ = ESC [, [0-9;?]* = parámetros, [A-Za-z] = comando (m=color, A=arriba, K=borrar línea, etc.)
+                    $cleanOutput = preg_replace(['/<[^>]*>/', '/\x1b\[[0-9;?]*[A-Za-z]/'], '', $singleLine);
                     $formattedOutput = '      <fg=gray>» ' . $cleanOutput . '</>';
-                    
+
                     if ($output instanceof ConsoleSectionOutput) {
-                        $output->overwrite($formattedOutput);
+                        $this->logBuffer[] = $formattedOutput;
+                        if (count($this->logBuffer) > $this->maxLogLines) {
+                            array_shift($this->logBuffer);
+                        }
+                        $output->overwrite(implode("\n", $this->logBuffer));
                     } else {
                         $output->writeln($formattedOutput);
                     }
@@ -273,7 +351,6 @@ class LaravelBuilder implements BuilderInterface
      */
     protected function scaffoldProject(string $projectName, OutputInterface $statusSection, OutputInterface $logSection, LaravelOptions $options): void
     {
-        $statusSection->writeln('   • Scaffolding project');
         $this->createLaravelProjectWithInstaller($projectName, $statusSection, $logSection, $options);
     }
 
@@ -295,14 +372,10 @@ class LaravelBuilder implements BuilderInterface
      * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
      * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
      */
-    protected function configureSail(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
+    protected function configureSailStep(string $projectPath, LaravelOptions $options, OutputInterface $logSection): void
     {
-        $statusSection->writeln('   • Configuring Laravel Sail');
         $this->runProcess(['composer', 'require', 'laravel/sail', '--dev', '--no-interaction', '--quiet'], $projectPath, $logSection, false, true, $options->isQuiet(), $options->isVerbose());
-        $this->installSail($projectPath, $options, $statusSection, $logSection);
-        $statusSection->clear();
-        $logSection->clear();
-        $historySection->writeln('   <info>✔</info> Laravel Sail configured');
+        $this->installSail($projectPath, $options, $logSection, $logSection);
     }
 
     /**
@@ -313,18 +386,18 @@ class LaravelBuilder implements BuilderInterface
      * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
      * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
      */
-    protected function installAuthKit(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
+    protected function installAuthKit(string $projectPath, LaravelOptions $options, OutputInterface $logSection): void
     {
         $kit = $options->kit;
 
         if ($kit === 'Breeze' || $kit === 'Official Starter Kit (2026)') {
-            $this->installBreezeOrOfficialKit($projectPath, $options, $historySection, $statusSection, $logSection);
+            $this->installBreezeOrOfficialKit($projectPath, $options, $logSection);
         } elseif ($kit === 'Jetstream') {
-            $this->installJetstreamKit($projectPath, $options, $historySection, $statusSection, $logSection);
+            $this->installJetstreamKit($projectPath, $options, $logSection);
         }
 
         if ($kit === 'Breeze' || $kit === 'Official Starter Kit (2026)' || $kit === 'Jetstream') {
-            $this->fixJsDependencies($projectPath, $options->stack, $historySection);
+            $this->fixJsDependencies($projectPath, $options->stack, $logSection);
         }
     }
 
@@ -336,38 +409,22 @@ class LaravelBuilder implements BuilderInterface
      * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
      * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
      */
-    protected function installBreezeOrOfficialKit(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
+    protected function installBreezeOrOfficialKit(string $projectPath, LaravelOptions $options, OutputInterface $logSection): void
     {
-        $kitName = $options->kit === 'Breeze' ? 'Laravel Breeze' : 'Official Starter Kit (2026)';
-        $statusSection->writeln("   • Ensuring {$kitName} is installed");
-
         $breezePath = $projectPath . '/vendor/laravel/breeze';
         if (!is_dir($breezePath)) {
             $this->runProcess(['composer', 'require', 'laravel/breeze', '--dev', '--no-interaction', '--quiet'], $projectPath, $logSection, false, true, $options->isQuiet(), $options->isVerbose());
-            $breezeArgs = [$options->stack]; // Ya sanitizado
-
-            // Set env to avoid NPM ERESOLVE issues during artisan's internal npm install
-            $process = new Process(array_merge(['php', 'artisan', 'breeze:install'], $breezeArgs), $projectPath, ['NPM_CONFIG_LEGACY_PEER_DEPS' => 'true']);
-            $process->setTimeout(null);
-            
-            $isQuiet = $options->isQuiet();
-            $isVerbose = $options->isVerbose();
-
-            $process->run(function ($type, $line) use ($logSection, $isQuiet, $isVerbose) {
-                $this->handleProcessOutput($type, $line, $logSection, $isQuiet, $isVerbose);
-            });
-
-            if (!$process->isSuccessful()) {
-                $historySection->writeln('   <comment>⚠</comment> Breeze install finished with some warnings (likely NPM)');
-            } else {
-                $statusSection->clear();
-                $logSection->clear();
-                $historySection->writeln('   <info>✔</info> ' . $kitName . ' installed');
-            }
-        } else {
-            $statusSection->clear();
-            $logSection->clear();
-            $historySection->writeln('   <info>✔</info> ' . $kitName . ' already installed');
+            $breezeArgs = [$options->stack];
+            $this->runProcess(
+                array_merge(['php', 'artisan', 'breeze:install'], $breezeArgs),
+                $projectPath,
+                $logSection,
+                false,
+                true,
+                $options->isQuiet(),
+                $options->isVerbose(),
+                ['NPM_CONFIG_LEGACY_PEER_DEPS' => 'true']
+            );
         }
     }
 
@@ -379,93 +436,26 @@ class LaravelBuilder implements BuilderInterface
      * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
      * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
      */
-    protected function installJetstreamKit(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
+    protected function installJetstreamKit(string $projectPath, LaravelOptions $options, OutputInterface $logSection): void
     {
-        $statusSection->writeln('   • Ensuring Laravel Jetstream is installed');
-
         $jetstreamPath = $projectPath . '/vendor/laravel/jetstream';
         if (!is_dir($jetstreamPath)) {
             $this->runProcess(['composer', 'require', 'laravel/jetstream', '--no-interaction', '--quiet'], $projectPath, $logSection, false, true, $options->isQuiet(), $options->isVerbose());
 
-            // Set env to avoid NPM ERESOLVE issues during artisan's internal npm install
             $process = new Process(['php', 'artisan', 'jetstream:install', $options->stack, '--no-interaction'], $projectPath, ['NPM_CONFIG_LEGACY_PEER_DEPS' => 'true']);
             $process->setTimeout(null);
-            
+
             $isQuiet = $options->isQuiet();
             $isVerbose = $options->isVerbose();
 
             $process->run(function ($type, $line) use ($logSection, $isQuiet, $isVerbose) {
                 $this->handleProcessOutput($type, $line, $logSection, $isQuiet, $isVerbose);
             });
-
-            if (!$process->isSuccessful()) {
-                $historySection->writeln('   <comment>⚠</comment> Jetstream install finished with some warnings (likely NPM)');
-            } else {
-                $statusSection->clear();
-                $logSection->clear();
-                $historySection->writeln('   <info>✔</info> Laravel Jetstream installed');
-            }
-        } else {
-            $statusSection->clear();
-            $logSection->clear();
-            $historySection->writeln('   <info>✔</info> Laravel Jetstream already installed');
         }
     }
 
-    /**
-     * Instala Laravel Boost si está habilitado.
-     *
-     * @param string $projectPath Ruta raíz del proyecto.
-     * @param LaravelOptions $options Opciones de Laravel (ya sanitizadas).
-     * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
-     * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
-     */
-    protected function maybeInstallBoost(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
-    {
-        if (!$options->withBoost) {
-            return;
-        }
 
-        $statusSection->writeln('   • Installing Laravel Boost');
-        $this->installBoost($projectPath, $statusSection, $logSection, $options);
-        $statusSection->clear();
-        $logSection->clear();
-        $historySection->writeln('   <info>✔</info> Laravel Boost installed');
-    }
 
-    /**
-     * Establece la conexión de base de datos en el archivo .env.
-     *
-     * @param string $projectPath Ruta raíz del proyecto.
-     * @param string $database Tipo de base de datos (ej. 'mysql', 'sqlite', ya sanitizado).
-     * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
-     * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
-     */
-    protected function setDatabase(string $projectPath, string $database, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
-    {
-        $statusSection->writeln('   • Setting database connection');
-        $this->setDatabaseConnection($projectPath, $database, $logSection);
-        $statusSection->clear();
-        $logSection->clear();
-        $historySection->writeln('   <info>✔</info> Database connection set to ' . $database);
-    }
-
-    /**
-     * Genera el script de instalación (install.sh) a partir del stub.
-     *
-     * @param string $projectPath Ruta raíz del proyecto.
-     * @param LaravelOptions $options Opciones de Laravel (ya sanitizadas).
-     * @param OutputInterface $historySection Sección de historial para mensajes de éxito.
-     * @param OutputInterface $activeSection Sección activa para logs en tiempo real.
-     */
-    protected function generateInstallationScript(string $projectPath, LaravelOptions $options, OutputInterface $historySection, OutputInterface $statusSection, OutputInterface $logSection): void
-    {
-        $statusSection->writeln('   • Generating installation script');
-        $this->generateInstallScript($projectPath, $options, $logSection);
-        $statusSection->clear();
-        $logSection->clear();
-        $historySection->writeln('   <info>✔</info> Installation script generated');
-    }
 
     /**
      * Corrige los permisos de la carpeta node_modules si existe.
@@ -490,12 +480,11 @@ class LaravelBuilder implements BuilderInterface
      */
     protected function showFinalInfo(OutputInterface $activeSection, string $projectName): void
     {
-        $activeSection->clear();
         $activeSection->writeln('');
         $activeSection->writeln('<info>🎉 Project generated successfully!</info>');
         $activeSection->writeln('<info>📝 Next steps:</info>');
         $activeSection->writeln('   1. cd ' . $projectName);
-        $activeSection->writeln('   2. ./install.sh');
+        $activeSection->writeln('   2. scripts/install.sh');
     }
 
     /**
@@ -508,15 +497,14 @@ class LaravelBuilder implements BuilderInterface
      */
     protected function createLaravelProjectWithInstaller(string $projectName, OutputInterface $statusSection, OutputInterface $logSection, LaravelOptions $options): void
     {
-        $this->checkForLaravelInstallerUpdates($statusSection, $logSection, $options);
+        $this->checkForLaravelInstallerUpdates($logSection, $options);
         $this->setComposerPathInEnvironment();
         $this->createLaravelProject($projectName, $logSection, $options);
     }
 
-    protected function checkForLaravelInstallerUpdates(OutputInterface $statusSection, OutputInterface $logSection, LaravelOptions $options): void
+    protected function checkForLaravelInstallerUpdates(OutputInterface $logSection, LaravelOptions $options): void
     {
-        $statusSection->writeln('   • Checking for Laravel installer updates');
-        $this->runProcess(['composer', 'global', 'require', 'laravel/installer'], getcwd(), $logSection, false, true, $options->isQuiet(), $options->isVerbose());
+        $this->runProcess(['composer', 'global', 'require', 'laravel/installer', '--no-interaction', '--quiet'], getcwd(), $logSection, false, true, $options->isQuiet(), $options->isVerbose());
     }
 
     /**
@@ -569,10 +557,6 @@ class LaravelBuilder implements BuilderInterface
             'Package manifest generated successfully',
             'Lock file operations',
             'Package operations',
-            ' - Locking',
-            ' - Installing',
-            ' - Updating',
-            ' - Removing',
             'Nothing to modify in lock file',
             '/\[[>=-]*\]/i',
 
@@ -599,7 +583,6 @@ class LaravelBuilder implements BuilderInterface
             'Pulling',
             'Pulled',
             'Downloading',
-            'Extracting',
             'Verifying archive integrity',
             'All good!',
             'build-kit',
@@ -648,56 +631,25 @@ class LaravelBuilder implements BuilderInterface
     }
 
     /**
-     * Creates the Laravel project using the Laravel installer.
+     * Creates a new Laravel project using the installer.
      *
-     * @param string $projectName Nombre del proyecto a crear (ya sanitizado).
-     * @param OutputInterface $output Output para mostrar progreso.
-     * @param LaravelOptions $options Opciones de Laravel (ya sanitizadas).
+     * @param string $projectName The name of the project.
+     * @param OutputInterface $output The output section for logs.
+     * @param LaravelOptions $options The options for noise filtering.
      */
     private function createLaravelProject(string $projectName, OutputInterface $output, LaravelOptions $options): void
     {
-        $process = new Process(['laravel', 'new', $projectName, '--no-interaction']);
-        $process->setTimeout(null);
-        $isQuiet = $options->isQuiet();
-        $isVerbose = $options->isVerbose();
-        $skipBlock = false;
-
-        $process->run(function ($type, $line) use ($output, &$skipBlock, $isQuiet, $isVerbose) {
-            if ($isVerbose) {
-                $output->write($line);
-                return;
-            }
-
-            if ($isQuiet && $this->isNoise($line)) {
-                return;
-            }
-
-            if ($this->shouldSkipLaravelOutput($line)) {
-                $skipBlock = true;
-            }
-            if (!$skipBlock) {
-                $output->write($line);
-            }
-        });
-
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException("laravel new failed: " . $process->getErrorOutput());
-        }
-    }
-
-    /**
-     * Determines if Laravel installer output should be skipped.
-     *
-     * @param string $line Una línea de output del instalador de Laravel.
-     * @return bool Verdadero si la salida debe omitirse, falso en otro caso.
-     */
-    private function shouldSkipLaravelOutput(string $line): bool
-    {
-        return (
-            strpos($line, 'Running database migrations') !== false ||
-            strpos($line, 'Application ready in') !== false
+        $this->runProcess(
+            ['laravel', 'new', $projectName, '--no-interaction', '--quiet'],
+            getcwd(),
+            $output,
+            false, // hideOutput
+            false, // allowFailure
+            $options->isQuiet(),
+            $options->isVerbose()
         );
     }
+
 
     /**
      * Asegura que exista el archivo resources/js/bootstrap.js y su contenido básico.
@@ -768,20 +720,20 @@ class LaravelBuilder implements BuilderInterface
         return $sailCommand;
     }
 
-    protected function installBoost(string $projectPath, OutputInterface $headerSection, OutputInterface $detailSection, LaravelOptions $options): void
+    protected function installBoost(string $projectPath, OutputInterface $logSection, LaravelOptions $options): void
     {
-        $headerSection->writeln('   • Installing Laravel Boost for AI assisted coding');
         try {
-            $this->runProcess(['composer', 'require', 'laravel/boost', '--dev', '--no-interaction', '--quiet'], $projectPath, $detailSection, false, true, $options->isQuiet(), $options->isVerbose());
-            $this->runProcess(['php', 'artisan', 'boost:install'], $projectPath, $detailSection, false, true, $options->isQuiet(), $options->isVerbose());
+            $this->runProcess(['composer', 'require', 'laravel/boost', '--dev', '--no-interaction', '--quiet'], $projectPath, $logSection, false, true, $options->isQuiet(), $options->isVerbose());
+            $this->runProcess(['php', 'artisan', 'boost:install'], $projectPath, $logSection, false, true, $options->isQuiet(), $options->isVerbose());
         } catch (\Exception $e) {
-            $headerSection->writeln('<warning>⚠️ Laravel Boost installation failed. Continuing without it...</warning>');
+            // Silently fail or log to buffer
+            $this->handleProcessOutput(Process::ERR, 'Laravel Boost installation failed. Continuing...', $logSection, $options->isQuiet(), $options->isVerbose());
         }
     }
 
     protected function generateInstallScript(string $projectPath, LaravelOptions $options, OutputInterface $output): void
     {
-        $stubPath = __DIR__ . '/../templates/laravel/install.sh.stub';
+        $stubPath = __DIR__ . '/../Templates/laravel/install.sh.stub';
         if (!file_exists($stubPath)) {
             $output->writeln('<error>❌ Template not found</error>');
             return;
@@ -803,10 +755,14 @@ class LaravelBuilder implements BuilderInterface
             'JETSTREAM_STACK' => $options->stack,
         ];
 
+        $scriptsDir = $projectPath . '/scripts';
+        if (!is_dir($scriptsDir)) {
+            mkdir($scriptsDir, 0755, true);
+        }
+
         $content = StubProcessor::process($stub, $variables, $tags);
-        file_put_contents($projectPath . '/install.sh', $content);
-        // Usar permisos más seguros: 755 en lugar de 0755
-        chmod($projectPath . '/install.sh', 0755);
+        file_put_contents($scriptsDir . '/install.sh', $content);
+        chmod($scriptsDir . '/install.sh', 0755);
     }
 
     protected function fixJsDependencies(string $projectPath, string $stack, OutputInterface $output): void

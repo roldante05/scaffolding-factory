@@ -1,82 +1,93 @@
 #!/bin/bash
 set -e
 
-# Colores para la terminal
+# Nos aseguramos de estar en la raíz del proyecto (un nivel arriba de scripts/)
+cd "$(dirname "$0")/.."
+
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-echo -e "${BLUE}🚀 Iniciando instalación de Laravel Scaffolding${NC}"
-echo -e "${BLUE}===============================================${NC}"
+echo -e "${BLUE}"
+echo -e "    _____            ________      __    ___"
+echo -e "   / ___/_________ _/ __/ __/___  / /___/ (_)___  ____ _"
+echo -e "   \__ \/ ___/ __ \`/ /_/ /_/ __ \/ / __  / / __ \/ __ \`/"
+echo -e "  ___/ / /__/ /_/ / __/ __/ /_/ / / /_/ / / / / / /_/ /"
+echo -e " /____/\___/\__,_/_/ /_/  \____/_/\__,_/_/_/ /_/\__, /"
+echo -e "                                                /____/  "
+echo -e "${NC}"
+echo -e "${BLUE}  Laravel Project Setup${NC}"
+echo -e "${BLUE}  ────────────────────────────────────${NC}"
+echo ""
 
-# Archivo temporal para logs
-LOG_FILE="/tmp/laravel_install_$(date +%s).log"
-
-# Helper para ejecutar pasos de forma limpia
+# Helper para mostrar pasos
 run_step() {
     local message=$1
     shift
-    echo -ne "⏳ $message... "
-    
+    echo -ne "  ⏳ $message... "
+    local LOG_FILE
+    LOG_FILE=$(mktemp)
+
     if "$@" > "$LOG_FILE" 2>&1; then
-        echo -e "${GREEN}✅ LISTO${NC}"
+        echo -e "${GREEN}✔${NC}"
+        rm -f "$LOG_FILE"
     else
-        echo -e "${RED}❌ ERROR${NC}"
-        echo -e "${RED}--- DETALLE DEL ERROR (Últimas 20 líneas) ---${NC}"
-        tail -n 20 "$LOG_FILE"
-        echo -e "${RED}--------------------------------------------${NC}"
-        echo -e "Log completo en: $LOG_FILE"
+        echo -e "${RED}✘ ERROR${NC}"
+        echo ""
+        echo -e "${RED}  ── Últimas líneas del error ──${NC}"
+        tail -n 15 "$LOG_FILE"
+        echo -e "${RED}  ────────────────────────────${NC}"
+        rm -f "$LOG_FILE"
         exit 1
     fi
 }
 
-# Verificaciones iniciales
+# ── Verificaciones ───────────────────────────────────────────
 if ! command -v docker &> /dev/null; then
-    echo -e "${RED}❌ Docker no encontrado. Por favor instalalo primero.${NC}"
+    echo -e "  ${RED}✘ Docker no encontrado. Instalalo desde https://docs.docker.com/get-docker/${NC}"
     exit 1
 fi
 
-# Pasos de instalación
-run_step "Limpiando directorios" rm -rf vendor node_modules
-run_step "Creando directorios de sistema" mkdir -p bootstrap/cache storage/framework/{sessions,views,cache}
-chmod -R 777 bootstrap/cache storage/framework
+# ── Instalación ──────────────────────────────────────────────
 
-run_step "Instalando dependencias PHP (esto puede tardar)" docker run --rm \
+# 1. Dependencias PHP (usa Docker para no requerir PHP/Composer local)
+run_step "Instalando dependencias PHP" docker run --rm \
     -u "$(id -u):$(id -g)" \
     -v "$(pwd):/var/www/html" \
     -w /var/www/html \
     -e COMPOSER_HOME=/tmp/composer \
     laravelsail/php84-composer:latest \
-    composer install --ignore-platform-reqs --no-interaction --no-scripts
+    composer install --ignore-platform-reqs --no-interaction --no-scripts --quiet
 
-run_step "Configurando archivo .env" cp -n .env.example .env
+# 2. Configurar el entorno
+if [ ! -f .env ]; then
+    run_step "Creando archivo .env" cp .env.example .env
+fi
 
-run_step "Levantando contenedores Docker (Sail)" ./vendor/bin/sail up -d --build
+# 3. Levantar los contenedores
+run_step "Iniciando contenedores (esto puede tardar la primera vez)" ./vendor/bin/sail up -d --build
 
-# Esperamos un poco a que los servicios estén listos
-echo -ne "⏳ Esperando a que los servicios se estabilicen... "
-sleep 5
-echo -e "${GREEN}✅${NC}"
+# 4. Esperar a que los servicios de DB estén listos
+echo -ne "  ⏳ Esperando que la base de datos esté lista... "
+sleep 8
+echo -e "${GREEN}✔${NC}"
 
-run_step "Generando clave de aplicación" ./vendor/bin/sail artisan key:generate
-run_step "Creando enlaces de almacenamiento" ./vendor/bin/sail artisan storage:link
+# 5. Configuración de Laravel
+run_step "Generando clave de aplicación" ./vendor/bin/sail artisan key:generate --quiet
+run_step "Creando enlace de almacenamiento" ./vendor/bin/sail artisan storage:link --quiet
+run_step "Ejecutando migraciones" ./vendor/bin/sail artisan migrate --force --quiet
 
-{{USE_BREEZE}}
-run_step "Finalizando instalación de Breeze" ./vendor/bin/sail artisan breeze:install {{BREEZE_STACK}} --no-interaction
-{{/USE_BREEZE}}
+# 6. Assets de frontend
+run_step "Instalando dependencias de frontend" ./vendor/bin/sail npm install --legacy-peer-deps --silent
+run_step "Compilando assets" ./vendor/bin/sail npm run build
 
-{{USE_JETSTREAM}}
-run_step "Finalizando instalación de Jetstream" ./vendor/bin/sail artisan jetstream:install {{JETSTREAM_STACK}} --no-interaction
-{{/USE_JETSTREAM}}
-
-run_step "Ejecutando migraciones de base de datos" ./vendor/bin/sail artisan migrate --force
-run_step "Instalando dependencias de frontend (NPM)" ./vendor/bin/sail npm install --legacy-peer-deps
-run_step "Compilando assets de frontend" ./vendor/bin/sail npm run build
-
-echo -e "${BLUE}===============================================${NC}"
-echo -e "${GREEN}✅ ¡Instalación completada con éxito! 🎉${NC}"
-echo -e "${BLUE}===============================================${NC}"
-echo -e "🌎 Acceso: ${BLUE}http://localhost${NC}"
-echo -e "💻 Para empezar a desarrollar: ${GREEN}./vendor/bin/sail npm run dev${NC}"
+# ── Listo ─────────────────────────────────────────────────────
+echo ""
+echo -e "${BLUE}  ────────────────────────────────────${NC}"
+echo -e "${GREEN}  ✔ Proyecto listo${NC}"
+echo ""
+echo -e "  🌎 URL local:     ${BLUE}http://localhost${NC}"
+echo -e "  💻 Para dev:      ${GREEN}./vendor/bin/sail npm run dev${NC}"
+echo -e "  🐳 Para detener:  ${GREEN}./vendor/bin/sail down${NC}"
 echo ""

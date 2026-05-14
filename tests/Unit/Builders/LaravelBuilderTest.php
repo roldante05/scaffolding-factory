@@ -26,13 +26,11 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
     {
         $this->output = $this->createMock(OutputInterface::class);
         $this->consoleOutput = $this->createMock(ConsoleOutputInterface::class);
-        $this->historySection = $this->createMock(ConsoleSectionOutput::class);
-        $this->statusSection = $this->createMock(ConsoleSectionOutput::class);
         $this->logSection = $this->createMock(ConsoleSectionOutput::class);
         
-        // Configure console output to return our sections
+        // Configure console output to return our log section
         $this->consoleOutput->method('section')
-            ->willReturnOnConsecutiveCalls($this->historySection, $this->statusSection, $this->logSection);
+            ->willReturn($this->logSection);
     }
 
     /**
@@ -46,11 +44,9 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
                     ->onlyMethods([
                         'scaffoldProject',
                         'ensureBootstrap',
-                        'configureSail',
+                        'configureSailStep',
                         'installAuthKit',
-                        'maybeInstallBoost',
-                        'setDatabase',
-                        'generateInstallationScript',
+                        'installBoost',
                         'fixNodeModulesPermissions',
                         'showFinalInfo',
                         'createLaravelProjectWithInstaller',
@@ -60,7 +56,6 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
                         'customizeComposeFile',
                         'installBreezeOrOfficialKit',
                         'installJetstreamKit',
-                        'installBoost',
                         'setDatabaseConnection',
                         'generateInstallScript',
                         'fixJsDependencies'
@@ -112,10 +107,15 @@ class LaravelBuilderTest extends \PHPUnit\Framework\TestCase
         // Make the scaffoldProject method throw an exception
         $builder->expects($this->once())
                 ->method('scaffoldProject')
-                ->with($this->equalTo('test-project'), $this->identicalTo($this->output))
+                ->with(
+                    $this->equalTo('test-project'),
+                    $this->identicalTo($this->consoleOutput),
+                    $this->identicalTo($this->logSection),
+                    $this->isInstanceOf(LaravelOptions::class)
+                )
                 ->willThrowException(new \Exception('Test exception'));
 
-        $result = $builder->build('test-project', $options, $this->output);
+        $result = $builder->build('test-project', $options, $this->consoleOutput);
 
         $this->assertEquals(1, $result);
     }
