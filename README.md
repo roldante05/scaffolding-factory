@@ -1,79 +1,89 @@
-# laravel-scaffolder
+# Scaffolding Factory 🚀
 
-Herramienta CLI para la creación de proyectos Laravel (Scaffolder)
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D%208.2-8892bf.svg)](https://php.net)
+[![Composer Version](https://img.shields.io/badge/composer-%3E%3D%202.0-4479a1.svg)](https://getcomposer.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Esta es una herramienta de línea de comandos diseñada para agilizar la creación de proyectos Laravel personalizados. A través de un menú interactivo, te permite configurar el entorno de desarrollo (Sail), el framework de frontend (Livewire/Volt), las herramientas de construcción (Vite/Tailwind v4) y el sistema de pruebas (Pest 3) de forma automática.
+**Scaffolding Factory** is a powerful Command Line Interface (CLI) tool designed to scaffold professional web projects in seconds. It bridges the gap between complex full-stack frameworks and lightweight custom setups by providing high-quality boilerplate for both **Laravel** and **Vanilla PHP**, fully containerized and ready for production-grade development.
 
-## Características
+## 🛠️ What it does
 
-- **Configuración Moderna**: Adaptado a los estándares de Laravel 12.
-- **Entorno Docker**: Configuración opcional de Laravel Sail con MySQL.
-- **Frontend Stack**: Inclusión automática de Livewire y Volt.
-- **Tailwind CSS v4**: Integración nativa "CSS-first" optimizada para Vite (sin archivos de configuración obsoletos).
-- **Testing**: Soporte para Pest 3 (inicialización automática) o PHPUnit.
-- **Automatización Total**: Genera un script `install.sh` que se encarga de:
-  - Levantar contenedores.
-  - Generar claves y links de storage.
-  - Instalar dependencias PHP y NPM.
-  - Configurar los estilos y herramientas de testing.
+This tool automates the tedious setup process of modern web applications:
+- **Dual Architecture Support**: Choose between the robust Laravel ecosystem or a clean, optimized Vanilla PHP structure.
+- **Docker-First Workflow**: Automatically generates `docker-compose.yml` configurations (Laravel Sail or Custom Apache/PHP 8.3) so your environment is consistent everywhere.
+- **Instant Authentication**:
+    - **Laravel**: Integration with Breeze, Jetstream, or Official Starter Kits.
+    - **Vanilla PHP**: Optional Session-based Login Kit with PDO, including registration and secure session management.
+- **Modern Styling**: Out-of-the-box support for **Tailwind CSS v4** or **Bootstrap 5**.
+- **Onboarding Automation**: Generates a `scripts/install.sh` script that handles environment setup for new collaborators (dependencies, environment variables, and containers).
 
-## Instalación
+---
 
-### Global (Recomendado)
-Para usar el comando `laravel-init` desde cualquier lugar de tu sistema:
+## 📋 Prerequisites
 
-1. Registra el repositorio local (o utiliza Packagist si ya está publicado):
-   ```bash
-   composer global require roldante05/laravel-scaffolder
-   ```
+Before using Scaffolding Factory, ensure your system meets the following requirements:
 
-2. Asegúrate de tener el directorio de binarios de Composer en tu PATH (ej: `~/.config/composer/vendor/bin`).
+- **PHP 8.2+**: Required to run the CLI tool and the generated projects.
+- **Composer**: Used for global installation and dependency management.
+- **Docker & Docker Compose**: Essential for the containerized development environment.
+- **Git**: For version control management during project creation.
 
-### Local
+---
+
+## 🚀 Getting Started
+
+Follow these steps to create your first project:
+
+### 1. Installation
+Install the tool globally via Composer:
 ```bash
-git clone https://github.com/roldante05/laravel-scaffolder.git
-cd laravel-scaffolder
-composer install
+composer global require roldante05/scaffolding-factory
+```
+*Note: Make sure your global composer vendor bin directory is in your system's PATH.*
+
+### 2. Create a New Project
+Run the `new` command and provide a name for your project:
+```bash
+scaffold new my-web-project
 ```
 
-## Uso
+### 3. Follow the Interactive Wizard
+The CLI uses a premium TUI (Terminal User Interface) with **Laravel Prompts**. Use the arrow keys to select your preferences:
+- **Project Type**: Laravel or PHP Vanilla.
+- **Starter Kit**: Choose your authentication and stack preferences.
+- **Database**: Select from SQLite, MySQL, MariaDB, or PostgreSQL.
+- **Design**: Pick your favorite CSS framework.
 
-Para crear un nuevo proyecto, navega a la carpeta donde quieras alojarlo y ejecuta:
+### 4. Initialize and Run
+Once the scaffolding is complete, navigate to your project folder and run the installation script.
 
-```bash
-laravel-init init nombre-de-tu-proyecto
-```
-
-La herramienta te guiará con las siguientes opciones:
-1. **¿Usar Laravel Sail con MySQL?**: Configura Docker para tu proyecto.
-2. **¿Incluir Livewire (con Volt)?**: Instala los componentes reactivos modernos de Laravel.
-3. **¿Qué usar para assets?**: Vite (recomendado para Tailwind v4) o Webpack (legado).
-4. **¿Qué framework de tests usar?**: Pest 3 (recomendado) o PHPUnit.
-
-### Finalización del Setup
-Una vez que el comando termina, entrarás en la carpeta de tu nuevo proyecto y ejecutarás el script de instalación final:
+> [!IMPORTANT]
+> The `scripts/install.sh` script is designed to automate the setup for **anyone who clones the repository** (e.g., from GitHub). It installs Composer dependencies via Docker, creates the `.env` file, and starts the containers.
 
 ```bash
-cd nombre-de-tu-proyecto
-./install.sh
+cd my-web-project
+bash scripts/install.sh
 ```
+This script will build your Docker environment, install dependencies, and provide you with a local URL (usually `http://localhost`) where your app is running.
 
-Este script detectará si usas Sail y configurará todo el entorno para que solo tengas que empezar a programar.
+---
 
-## Estructura del Proyecto
+## 📖 Available Flows
 
-- `src/` - Lógica principal del comando Symfony Console.
-- `src/Templates/` - Plantilla del script `install.sh.stub` que se personaliza según tus respuestas.
-- `bin/` - Punto de entrada del ejecutable CLI.
-- `tests/` - Suite de pruebas con Pest para asegurar la calidad de la herramienta.
+### Laravel Ecosystem
+- **Official Kits**: Breeze (Blade, Livewire, Inertia), Jetstream (Livewire, Inertia).
+- **Database**: Full support for standard SQL drivers.
+- **Sail Integration**: Pre-configured for easy container management.
 
-## Requisitos
+### Vanilla PHP
+- **MVC Ready**: Structured directories for a clean separation of concerns.
+- **Clean URLs**: Automated `.htaccess` configuration for extension-less routing (e.g., `/dashboard` instead of `dashboard.php`).
+- **PDO Wrapper**: Secure database interaction prepared for MySQL or SQLite.
 
-- PHP 8.2 o superior.
-- Composer.
-- Docker (si se utiliza la opción de Laravel Sail).
-- Extensión `php-xml` habilitada (para el correcto funcionamiento de Pest/PHPUnit).
+---
 
-## Licencia
+## 📄 License
 
-MIT
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
+
+Developed with ❤️ by [Dante Roldan](https://github.com/roldante05)
