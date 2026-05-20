@@ -10,16 +10,13 @@ use Roldante05\ScaffoldingFactory\DTOs\PhpVanillaOptions;
 test('laravel options dto can be instantiated', function () {
     $options = new LaravelOptions(
         projectName: 'test-project',
-        wantKit: true,
-        kit: 'Breeze',
-        stack: 'blade',
-        withTeams: false,
         database: 'sqlite',
-        withBoost: true
+        withSail: true
     );
 
     expect($options->projectName)->toBe('test-project');
-    expect($options->kit)->toBe('Breeze');
+    expect($options->database)->toBe('sqlite');
+    expect($options->withSail)->toBeTrue();
 });
 
 test('php vanilla options dto can be instantiated', function () {

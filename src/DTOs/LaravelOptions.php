@@ -8,12 +8,8 @@ readonly class LaravelOptions extends ProjectOptions
 {
     public function __construct(
         string $projectName,
-        public bool $wantKit,
-        public string $kit,
-        public string $stack,
-        public bool $withTeams,
         string $database,
-        public bool $withBoost,
+        public bool $withSail,
         public bool $quiet = true,
         public bool $verbose = false,
     ) {

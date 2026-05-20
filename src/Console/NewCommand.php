@@ -8,20 +8,15 @@ use Roldante05\ScaffoldingFactory\Builders\LaravelBuilder;
 use Roldante05\ScaffoldingFactory\Builders\PhpVanillaBuilder;
 use Roldante05\ScaffoldingFactory\Interactions\LaravelInteractionHandler;
 use Roldante05\ScaffoldingFactory\Interactions\PhpVanillaInteractionHandler;
-use Roldante05\ScaffoldingFactory\DTOs\LaravelOptions;
 use Roldante05\ScaffoldingFactory\DTOs\PhpVanillaOptions;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Laravel\Prompts\Prompt;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\select;
-use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\text;
-use function Laravel\Prompts\note;
-use function Laravel\Prompts\error;
 
 class NewCommand extends Command
 {
@@ -67,31 +62,15 @@ class NewCommand extends Command
 
         $options = $handler->handle($input, $output);
 
-        // Summary
-        $summaryLines = [
-            "Project Name: $projectName",
-            "Type: $projectType",
-        ];
-
-        if ($options instanceof LaravelOptions) {
-            $summaryLines[] = "Starter Kit: " . ($options->wantKit ? $options->kit : 'None');
-            $summaryLines[] = "Stack: " . $options->stack;
-            $summaryLines[] = "Database: " . $options->database;
-            $summaryLines[] = "Boost: " . ($options->withBoost ? 'Yes' : 'No');
-        } elseif ($options instanceof PhpVanillaOptions) {
-            $summaryLines[] = "Database: " . $options->database;
-            $summaryLines[] = "Login Kit: " . ($options->login ? 'Yes' : 'No');
-            $summaryLines[] = "CSS: " . $options->css;
+        if ($options instanceof PhpVanillaOptions) {
+            $output->writeln('');
+            $output->writeln("<info>Configuration:</info>");
+            $output->writeln("   • Database: {$options->database}");
+            $output->writeln("   • Login Kit: " . ($options->login ? 'Yes' : 'No'));
+            $output->writeln("   • CSS: {$options->css}");
         }
 
-        note(implode("\n", $summaryLines), 'Configuration Summary');
-
-        if (!confirm('Does everything look correct?', true)) {
-            error('❌ Operation cancelled.');
-            return Command::FAILURE;
-        }
-
-        $output->writeln(['', '', '', ' <fg=blue>🛠️  Starting installation process...</>', '']);
+        $output->writeln(['', '', ' <fg=blue>🛠️  Starting installation process...</>', '']);
 
         return $builder->build($projectName, $options, $output);
     }
