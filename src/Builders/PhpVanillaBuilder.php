@@ -223,8 +223,7 @@ class PhpVanillaBuilder implements BuilderInterface
             'Views/welcome.php.stub' => 'src/Views/welcome.php',
             'Views/home.php.stub' => 'src/Views/home.php',
             'Views/nav.php.stub' => 'src/Views/nav.php',
-            'Views/contact.php.stub' => 'src/Views/contact.php',
-            'Views/about.php.stub' => 'src/Views/about.php',
+
             'Views/layout/sidebar.php.stub' => 'src/Views/layout/sidebar.php',
             'Views/layout/header.php.stub' => 'src/Views/layout/header.php',
             'Views/layout/app.php.stub' => 'src/Views/layout/app.php',
@@ -243,9 +242,11 @@ class PhpVanillaBuilder implements BuilderInterface
         if ($options->login) {
             $files['Core/Auth.php.stub'] = 'src/Core/Auth.php';
             $files['Controllers/AuthController.php.stub'] = 'src/Controllers/AuthController.php';
+            $files['Controllers/ProfileController.php.stub'] = 'src/Controllers/ProfileController.php';
             $files['Models/User.php.stub'] = 'src/Models/User.php';
             $files['Views/form/login.php.stub'] = 'src/Views/form/login.php';
             $files['Views/form/register.php.stub'] = 'src/Views/form/register.php';
+            $files['Views/profile.php.stub'] = 'src/Views/profile.php';
         }
 
         if ($options->login && $options->database !== 'none') {

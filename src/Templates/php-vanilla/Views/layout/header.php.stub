@@ -3,8 +3,7 @@
     <h2 class="text-xl font-semibold text-slate-800">
         <?= match($_SERVER['REQUEST_URI']) {
             '/home' => 'Resumen General',
-            '/about' => 'Sobre Nosotros',
-            '/contact' => 'Contacto',
+            '/profile' => 'Mi Perfil',
             default => 'Dashboard'
         } ?>
     </h2>
@@ -28,8 +27,7 @@
     <h1 class="h2 fw-bold text-dark">
         <?= match($_SERVER['REQUEST_URI']) {
             '/home' => 'Resumen Semanal',
-            '/about' => 'Sobre Nosotros',
-            '/contact' => 'Contacto',
+            '/profile' => 'Mi Perfil',
             default => 'Dashboard'
         } ?>
     </h1>
