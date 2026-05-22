@@ -56,7 +56,7 @@ class AuthController extends Controller
         ]);
 
         if ($result['success']) {
-            $this->redirect('/home');
+            $this->redirect('/profile');
         }
 
         $_SESSION['error'] = $result['errors'][0] ?? "Registration failed";

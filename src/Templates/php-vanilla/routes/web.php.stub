@@ -11,8 +11,6 @@ declare(strict_types=1);
  */
 
 $router->get('/', 'HomeController@index');
-$router->get('/about', 'HomeController@about');
-$router->get('/contact', 'HomeController@contact');
 $router->get('/home', 'HomeController@home');
 
 {{USE_LOGIN}}
@@ -21,4 +19,5 @@ $router->post('/login', 'AuthController@login');
 $router->get('/register', 'AuthController@showRegister');
 $router->post('/register', 'AuthController@register');
 $router->get('/logout', 'AuthController@logout');
+$router->get('/profile', 'ProfileController@index');
 {{/USE_LOGIN}}
