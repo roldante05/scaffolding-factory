@@ -6,11 +6,11 @@ declare(strict_types=1);
 /**
  * ChePHP - CLI Tool
  *
- * Comandos disponibles:
- *   php che migrate     -> Ejecuta migraciones pendientes
- *   php che rollback    -> Revierte ultimo batch
- *   php che serve       -> Inicia servidor de desarrollo
- *   php che route:list  -> Lista rutas registradas
+ * Available commands:
+ *   php che migrate     -> Runs pending migrations
+ *   php che rollback    -> Rolls back last batch
+ *   php che serve       -> Starts development server
+ *   php che route:list  -> Lists registered routes
  */
 
 require_once __DIR__ . '/vendor/autoload.php';
@@ -19,7 +19,7 @@ $command = $argv[1] ?? 'help';
 
 switch ($command) {
     case 'migrate':
-        echo "📦 Ejecutando migraciones...\n";
+        echo "📦 Running migrations...\n";
         $migration = new \App\Core\Migration(__DIR__ . '/migrations');
         $results = $migration->migrate();
         foreach ($results as $r) {
@@ -28,31 +28,31 @@ switch ($command) {
             if (isset($r['error'])) echo " — {$r['error']}";
             echo "\n";
         }
-        echo "✔️  Hecho.\n";
+        echo "✔️  Done.\n";
         break;
 
     case 'rollback':
-        echo "↩️  Revirtiendo migraciones...\n";
+        echo "↩️  Rolling back migrations...\n";
         $migration = new \App\Core\Migration(__DIR__ . '/migrations');
         $results = $migration->rollback();
         foreach ($results as $r) {
             $icon = $r['status'] === 'rolled back' ? '↩️' : ($r['status'] === 'nothing to rollback' ? 'ℹ️' : '❌');
             echo "  $icon {$r['name']}\n";
         }
-        echo "✔️  Hecho.\n";
+        echo "✔️  Done.\n";
         break;
 
     case 'serve':
         $port = $argv[2] ?? '8080';
         $host = $argv[3] ?? 'localhost';
-        echo "⚡ ChePHP — Servidor de desarrollo\n";
+        echo "⚡ ChePHP — Development Server\n";
         echo "🌐 http://$host:$port\n";
         echo "────────────────────────────────\n";
         passthru("php -S $host:$port -t " . __DIR__);
         break;
 
     case 'route:list':
-        echo "📋 Rutas registradas:\n";
+        echo "📋 Registered routes:\n";
         echo "──────────────────────────────\n";
         $router = require __DIR__ . '/che.php';
         foreach ($router->getRoutes() as $route) {
@@ -67,23 +67,23 @@ switch ($command) {
 ║        ⚡ ChePHP — CLI Tool          ║
 ╠══════════════════════════════════════╣
 ║                                      ║
-║  Uso: php che <comando> [opciones]   ║
+║  Usage: php che <command> [options]   ║
 ║                                      ║
-║  Comandos:                           ║
+║  Commands:                           ║
 ║    migrate                           ║
-║        Ejecuta migraciones pendientes ║
+║        Runs pending migrations        ║
 ║                                      ║
 ║    rollback                          ║
-║        Revierte ultimo batch          ║
+║        Rolls back last batch          ║
 ║                                      ║
-║    serve [puerto] [host]             ║
-║        Inicia servidor de desarrollo  ║
+║    serve [port] [host]               ║
+║        Starts development server      ║
 ║                                      ║
 ║    route:list                        ║
-║        Lista todas las rutas          ║
+║        Lists all routes               ║
 ║                                      ║
 ║    help                              ║
-║        Muestra esta ayuda             ║
+║        Shows this help                ║
 ║                                      ║
 ╚══════════════════════════════════════╝
 

@@ -17,7 +17,7 @@ class ProfileController extends Controller
 
         $this->render('profile', [
             'title' => 'Profile',
-            'userName' => $user['name'] ?? 'Usuario',
+            'userName' => $user['name'] ?? 'User',
             'userEmail' => $user['email'] ?? '',
             'memberSince' => $user['created_at'] ?? null,
         ]);

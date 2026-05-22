@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'App' ?> - {{PROJECT_NAME}}</title>
+    <link rel="shortcut icon" href="/src/resources/img/chephp-logo.png" type="image/x-icon">
+    <title><?= $title ?? 'App' ?> - ChePHP</title>
     {{USE_TAILWIND}}
     <script src="/src/resources/js/tailwindcss.js"></script>
     <script>
@@ -26,7 +27,7 @@
 </head>
 <body class="{{USE_TAILWIND}}bg-slate-100 text-slate-900 antialiased m-0{{/USE_TAILWIND}}">
 
-    <?php if (isset($_SESSION['user_id'])): ?>
+    <?php if (class_exists('\App\Core\Auth') && \App\Core\Auth::check()): ?>
         <!-- Dashboard layout (logged in) -->
         {{USE_TAILWIND}}
         <div class="min-h-screen flex">

@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * ChePHP - Framework Bootstrap
  *
- * Inicializa el framework: configuracion, base de datos, autenticacion y enrutador.
+ * Initializes the framework: configuration, database, authentication, and router.
  * Puede ser usado desde la web (index.php) o desde CLI (che).
  *
  * Returns: \App\Core\Router
@@ -14,16 +14,16 @@ declare(strict_types=1);
 use App\Core\Router;
 use App\Security\Helpers\SecurityHelper;
 
-// ─── Seguridad (solo para peticiones web) ─────────────────────────────────────
+// ─── Security (web requests only) ────────────────────────────────────────────
 if (PHP_SAPI !== 'cli') {
     SecurityHelper::configureSecureSession();
     SecurityHelper::applySecurityHeaders();
 }
 
-// ─── Cargar configuracion ────────────────────────────────────────────────────
+// ─── Load configuration ──────────────────────────────────────────────────────
 $config = require __DIR__ . '/config/config.php';
 
-// ─── Inicializar base de datos ───────────────────────────────────────────────
+// ─── Initialize database ─────────────────────────────────────────────────────
 {{USE_MYSQL}}
 \App\Core\Database::getInstance();
 {{/USE_MYSQL}}
@@ -31,15 +31,15 @@ $config = require __DIR__ . '/config/config.php';
 \App\Core\Database::getInstance();
 {{/USE_SQLITE}}
 
-// ─── Inicializar autenticacion ───────────────────────────────────────────────
+// ─── Initialize authentication ───────────────────────────────────────────────
 {{USE_LOGIN}}
 \App\Core\Auth::init($config['auth'] ?? []);
 {{/USE_LOGIN}}
 
-// ─── Enrutador ───────────────────────────────────────────────────────────────
+// ─── Router ──────────────────────────────────────────────────────────────────
 $router = new Router();
 
-// ─── Cargar rutas de la aplicacion ───────────────────────────────────────────
+// ─── Load application routes ─────────────────────────────────────────────────
 require __DIR__ . '/src/routes/web.php';
 
 return $router;

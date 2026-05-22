@@ -3,7 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "🚀 PHP Vanilla Project - Install script"
+echo "🚀 ChePHP Project - Install script"
 echo "=========================================="
 
 if ! command -v docker &> /dev/null; then

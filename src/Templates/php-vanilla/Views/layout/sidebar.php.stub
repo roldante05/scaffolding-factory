@@ -4,7 +4,7 @@
         <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
             <span class="text-white text-sm">P</span>
         </div>
-        {{PROJECT_NAME}}
+        ChePHP
     </div>
     <nav class="mt-10 space-y-2 px-4">
         <a href="/home" class="block px-4 py-2 hover:bg-slate-800 rounded-lg transition <?= $_SERVER['REQUEST_URI'] === '/home' ? 'bg-indigo-600' : '' ?>">Dashboard</a>
@@ -15,7 +15,7 @@
 {{USE_BOOTSTRAP}}
 <nav class="col-md-3 col-lg-2 d-md-block bg-white sidebar vh-100 border-end p-3 position-fixed">
     <div class="mb-4 px-3">
-        <span class="fs-4 fw-bold text-primary">{{PROJECT_NAME}}</span>
+        <span class="fs-4 fw-bold text-primary">ChePHP</span>
     </div>
     <ul class="nav flex-column gap-2">
         <li class="nav-item">

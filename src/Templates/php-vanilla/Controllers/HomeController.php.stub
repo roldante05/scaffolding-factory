@@ -11,7 +11,7 @@ class HomeController extends Controller
 {
     public function index(): void
     {
-        $this->render('welcome', ['title' => 'Welcome to {{PROJECT_NAME}}']);
+        $this->render('welcome', ['title' => 'Welcome to ChePHP']);
     }
 
     public function home(): void
@@ -21,7 +21,7 @@ class HomeController extends Controller
         $user = Auth::user();
 
         $this->render('home', [
-            'userName' => $user['name'] ?? 'Usuario',
+            'userName' => $user['name'] ?? 'User',
         ]);
     }
 }

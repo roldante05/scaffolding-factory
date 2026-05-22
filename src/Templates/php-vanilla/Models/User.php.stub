@@ -8,6 +8,8 @@ use App\Core\ORM;
 
 class User extends ORM
 {
+    protected array $fillable = ['name', 'email', 'password'];
+
     public static function findByEmail(string $email): ?static
     {
         return self::where('email', $email)->first();

@@ -211,6 +211,7 @@ class PhpVanillaBuilder implements BuilderInterface
             'index.php.stub' => 'index.php',
             'che.stub' => 'che',
             'che.php.stub' => 'che.php',
+            'resources/img/chephp-logo.png' => 'src/resources/img/chephp-logo.png',
             'config/config.php.stub' => 'config/config.php',
             'routes/web.php.stub' => 'src/routes/web.php',
             'Core/Router.php.stub' => 'src/Core/Router.php',
