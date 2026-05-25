@@ -1,7 +1,10 @@
 # Scaffolding Factory 🚀
 
+<p align="center">
+  <img src="art/scaffolding-factory-banner.png" alt="Scaffolding Factory Banner" width="100%">
+</p>
+
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D%208.2-8892bf.svg)](https://php.net)
-[![Composer Version](https://img.shields.io/badge/composer-%3E%3D%202.0-4479a1.svg)](https://getcomposer.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **Scaffolding Factory** is a powerful Command Line Interface (CLI) tool designed to scaffold professional web projects in seconds. It bridges the gap between complex full-stack frameworks and lightweight custom setups by providing high-quality boilerplate for both **Laravel** and **Vanilla PHP**, fully containerized and ready for production-grade development.
@@ -23,10 +26,10 @@ This tool automates the tedious setup process of modern web applications:
 
 Before using Scaffolding Factory, ensure your system meets the following requirements:
 
-- **PHP 8.2+**: Required to run the CLI tool and the generated projects.
-- **Composer**: Used for global installation and dependency management.
+- **PHP 8.3+**: Required to run the CLI tool and the generated projects.
+- **Composer**: Required for installing PHP dependencies (used during project setup).
 - **Docker & Docker Compose**: Essential for the containerized development environment.
-- **Git**: For version control management during project creation.
+- **Git**: For cloning the repository and version control management.
 
 ---
 
@@ -34,27 +37,42 @@ Before using Scaffolding Factory, ensure your system meets the following require
 
 Follow these steps to create your first project:
 
-### 1. Installation
-Install the tool globally via Composer:
+### 1. Clone the Repository
+Since this tool is not available on Composer, you'll need to clone the repository directly:
 ```bash
-composer global require roldante05/scaffolding-factory
+git clone https://github.com/roldante05/scaffolding-factory.git
+cd scaffolding-factory
 ```
-*Note: Make sure your global composer vendor bin directory is in your system's PATH.*
 
-### 2. Create a New Project
+### 2. Install Dependencies
+Install the required PHP dependencies using Composer:
+```bash
+composer install
+```
+
+### 3. Make the CLI Accessible
+The CLI tool is available at `bin/scaffold`. You can:
+- Use it directly: `php bin/scaffold new my-web-project`
+- Or add the `bin` directory to your PATH for easier access:
+  ```bash
+  export PATH="$PATH:$(pwd)/bin"
+  # Add above line to your shell profile (e.g., ~/.bashrc, ~/.zshrc) for permanent access
+  ```
+
+### 4. Create a New Project
 Run the `new` command and provide a name for your project:
 ```bash
 scaffold new my-web-project
 ```
 
-### 3. Follow the Interactive Wizard
+### 5. Follow the Interactive Wizard
 The CLI uses a premium TUI (Terminal User Interface) with **Laravel Prompts**. Use the arrow keys to select your preferences:
 - **Project Type**: Laravel or PHP Vanilla.
 - **Starter Kit**: Choose your authentication and stack preferences.
 - **Database**: Select from SQLite, MySQL, MariaDB, or PostgreSQL.
 - **Design**: Pick your favorite CSS framework.
 
-### 4. Initialize and Run
+### 6. Initialize and Run
 Once the scaffolding is complete, navigate to your project folder and run the installation script.
 
 > [!IMPORTANT]

@@ -3,7 +3,7 @@
 ## Development Commands
 
 - **Run tests**: `composer test` (runs Pest)
-- **Run static analysis**: `composer phpstan` (if added; currently not in composer.json but may be used)
+- **Run static analysis**: `composer phpstan`
 - **Execute the CLI**: `php bin/scaffold` or `./bin/scaffold` (after ensuring executable)
 - **Install dependencies**: `composer install`
 
