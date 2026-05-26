@@ -51,9 +51,6 @@ composer global require roldante05/scaffolding-factory
 ```
 *Nota: Asegúrate de que el directorio bin de composer global esté en el PATH de tu sistema.*
 
-<<<<<<< Updated upstream
-### 2. Crea un Nuevo Proyecto
-=======
 ### 2. Instalar Dependencias
 Instala las dependencias de PHP requeridas utilizando Composer:
 ```bash
@@ -103,7 +100,6 @@ La herramienta CLI está disponible en `bin/scaffold`. Tienes tres opciones para
      Composer creará un enlace simbólico automático a tu carpeta local. ¡Cualquier cambio que guardes en tu editor se reflejará al instante cuando corras `scaffold` de forma global!
 
 ### 4. Crear un Nuevo Proyecto
->>>>>>> Stashed changes
 Ejecuta el comando `new` y proporciona un nombre para tu proyecto:
 ```bash
 scaffold new mi-proyecto-web
